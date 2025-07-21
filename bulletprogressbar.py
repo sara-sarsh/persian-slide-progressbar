@@ -1,0 +1,91 @@
+from PIL import Image, ImageDraw, ImageFont
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+def prepare_persian_text(text):
+    """
+    Prepare Persian text for proper rendering.
+    """
+    reshaped_text = arabic_reshaper.reshape(text)
+    return get_display(reshaped_text)
+
+def get_slide_progress(chapters, chapter_names, slides_per_chapter, font_path):
+    """
+    Generate progress bar images for slides with chapter names and bullet status.
+
+    Parameters:
+        chapters (int): Number of chapters.
+        chapter_names (list): List containing the names of the chapters.
+        slides_per_chapter (list): List containing the number of slides in each chapter.
+        font_path (str): Path to the Persian font file.
+    """
+    total_slides = sum(slides_per_chapter)
+    slide_count = 1
+
+    for chapter_index, slides_in_chapter in enumerate(slides_per_chapter):
+        for slide_number in range(1, slides_in_chapter + 1):
+            # Create a blank transparent image
+            width, height = 1200, 150
+            image = Image.new("RGBA", (width, height), (255, 255, 255, 0))
+            draw = ImageDraw.Draw(image)
+
+            # Set font size and type
+            try:
+                font = ImageFont.truetype(font_path, 30)  # Increase font size for visibility
+            except:
+                font = ImageFont.load_default()
+
+            # Draw chapter names
+            x_start = 40
+            y_text = 20
+            y_bullet = 70
+            circle_diameter = 20
+            spacing = 15
+            total_bullet_width = (circle_diameter + spacing) * max(slides_per_chapter) - spacing
+            chapter_x_positions = []
+
+            for idx, chapter_name in enumerate(chapter_names):
+                reshaped_name = prepare_persian_text(chapter_name)
+                chapter_x = x_start - idx * (total_bullet_width + 100)
+                chapter_x_positions.append(chapter_x)
+                draw.text((chapter_x-20, y_text), reshaped_name, fill="black", font=font)
+
+            # Draw progress bullets for each chapter
+            for idx, slides in enumerate(slides_per_chapter):
+                chapter_x = chapter_x_positions[idx]
+                for slide_idx in range(slides):
+                    bullet_x = chapter_x - slide_idx * (circle_diameter + spacing)
+                    if slide_count == slide_idx + 1 + sum(slides_per_chapter[:idx]):
+                        color = "blue"  # Highlight the current slide
+                    elif slide_idx + 1 < slide_count - sum(slides_per_chapter[:idx]):
+                        color = "gray"  # Slides already visited
+                    else:
+                        color = "black"  # Slides yet to be visited
+
+                    draw.ellipse(
+                        [
+                            (bullet_x, y_bullet - circle_diameter // 2),
+                            (bullet_x + circle_diameter, y_bullet + circle_diameter // 2),
+                        ],
+                        fill=color,
+                    )
+
+            # Save image with slide number as the name
+            image.save(f"slide_{slide_count}.png", dpi=(300, 300))
+            slide_count += 1
+
+# Example usage
+if __name__ == "__main__":
+    font_path = "/Users/sara/Library/Fonts/X Zar Bold.ttf"  # Path to Persian font
+
+    chapters = int(input("Enter the number of chapters: "))
+    chapter_names = []
+    slides_per_chapter = []
+
+    for i in range(chapters):
+        chapter_name = input(f"Enter the name of chapter {i + 1}: ")
+        chapter_names.append(chapter_name)
+        slides = int(input(f"Enter the number of slides in chapter '{chapter_name}': "))
+        slides_per_chapter.append(slides)
+
+    get_slide_progress(chapters, chapter_names, slides_per_chapter, font_path)
